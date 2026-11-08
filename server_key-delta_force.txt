@@ -3,7 +3,7 @@
 #                    QUẢN TRỊ BỞI: PHAM LONG (ADMIN)
 # ==============================================================================
 # KEY QUẢN TRỊ (ADMIN)
-
+PHL0990_ADMIN-PHAMLONG|2030-12-31
 
 # KEY ĐANG DÙNG (Cú pháp: TÊN_KEY|NĂM-THÁNG-NGÀY)
 PHL0990_M4K89X|2026-11-9
