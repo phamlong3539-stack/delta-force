@@ -1,16 +1,15 @@
 /**
  * ==============================================================================
- * Tên script: Locket Master Clean Offline Unlock (No Auth, No Limits, 2M Video)
+ * Tên script: Locket Master Clean Gold & Filter Unlock (Full Offline, No Auth, 2M Video)
  * Tương thích: Quantumult X, Surge, Loon, Shadowrocket, Stash
  * ==============================================================================
  */
 
-// 1. CẤU HÌNH MỞ RỘNG THỜI LƯỢNG & CHẤT LƯỢNG (2 Phút / 120 Giây)
-const VIDEO_DURATION_SEC = 120.0; // 2 phút
+// 1. CẤU HÌNH THỜI LƯỢNG & CHẤT LƯỢNG (2 Phút / 120 Giây)
+const VIDEO_DURATION_SEC = 120.0;
 const VIDEO_DURATION_STR = "120.0";
-const MAX_SIZE_BYTES = 500 * 1024 * 1024; // 500MB cho video siêu nét từ bộ sưu tập
 
-// =2. XỬ LÝ REQUEST ($response chưa tồn tại) -> Xóa bỏ mọi header cache / kiểm tra
+// 2. XỬ LÝ REQUEST ($response chưa tồn tại) -> Xóa bỏ header cache
 if (typeof $response === 'undefined') {
   let reqHeaders = Object.assign({}, ($request && $request.headers) || {});
   const headersToRemove = ['if-none-match', 'if-modified-since', 'x-revenuecat-etag', 'x-goog-if-none-match'];
@@ -22,13 +21,13 @@ if (typeof $response === 'undefined') {
   $done({ headers: reqHeaders });
 }
 
-// 3. XỬ LÝ RESPONSE ($response đã có dữ liệu) -> Mở khóa toàn diện
+// 3. XỬ LÝ RESPONSE ($response đã có dữ liệu) -> Mở khóa toàn diện Gold & Filter
 else {
   const reqUrl = (typeof $request !== 'undefined' && $request.url) ? $request.url : '';
   let body = $response.body;
   let status = $response.status || $response.statusCode || 200;
 
-  // Xóa bỏ hoàn toàn giới hạn lỗi filter / PTB (Biến mọi request xử lý ảnh thành công ngay lập tức)
+  // Luôn trả về thành công tuyệt đối cho mọi request dùng Filter / PTB / Ảnh
   if (reqUrl.includes('generateFilteredImage') || reqUrl.includes('filter') || reqUrl.includes('ptb')) {
     $done({
       status: 200,
@@ -52,7 +51,7 @@ else {
     try {
       let obj = JSON.parse(body);
 
-      // Tiêm gói vĩnh viễn RevenueCat (Chống mọi loại bảng thông báo khóa token)
+      // Tiêm gói vĩnh viễn RevenueCat để kích hoạt trạng thái Gold vĩnh viễn trên app
       if (obj.subscriber || reqUrl.includes('subscriptions') || reqUrl.includes('entitlements') || reqUrl.includes('v1/subscribers')) {
         const subscriptionData = {
           auto_resume_date: null,
@@ -90,9 +89,9 @@ else {
         });
       }
 
-      // Nếu phản hồi là Remote Config / App Config, bẻ khóa thời lượng video và cấu hình
+      // Xử lý Remote Config / App Config
       if (obj.entries && typeof obj.entries === 'object') {
-        obj.entries["max_ video_duration"] = VIDEO_DURATION_STR;
+        obj.entries["max_video_duration"] = VIDEO_DURATION_STR;
         obj.entries["video_max_duration"] = VIDEO_DURATION_STR;
         obj.entries["camera_roll_max_duration"] = VIDEO_DURATION_STR;
         obj.entries["camera_roll_video_max_duration"] = VIDEO_DURATION_STR;
@@ -102,25 +101,28 @@ else {
         obj.entries["requires_gold_for_filters"] = "false";
       }
 
-      // Hàm đệ quy quét và lột sạch mọi giới hạn, khóa mờ ảnh trên toàn bộ cây JSON phản hồi
-      function deepCleanAndUnlock(node) {
+      // Hàm đệ quy bật quyền Gold, mở khóa bộ lọc và xử lý ảnh siêu nét
+      function deepUnlockAndClean(node) {
         if (!node || typeof node !== 'object') return;
         if (Array.isArray(node)) {
           for (let i = 0; i < node.length; i++) {
-            deepCleanAndUnlock(node[i]);
+            deepUnlockAndClean(node[i]);
           }
           return;
         }
 
-        // Ép gán quyền Gold cho mọi thành phần
+        // Ép huy hiệu và trạng thái Gold cho mọi đối tượng
         node.badge = 'locket_gold';
         node.badge_tier = 'gold';
         node.is_gold = true;
         node.has_gold = true;
         node.gold = true;
+        node.gold_subscription = true;
+        node.has_gold_subscription = true;
+        node.tier = 'gold';
         node.subscription_status = 'active';
 
-        // Xóa sạch các cờ khóa, paywall, làm mờ
+        // Tắt toàn bộ cờ khóa, paywall, token lỗi
         const falseProps = [
           'is_locked', 'locked', 'requires_gold', 'require_gold', 
           'gold_only', 'is_gold_only', 'paywall', 'show_paywall', 
@@ -128,7 +130,7 @@ else {
         ];
         falseProps.forEach(p => { if (p in node) node[p] = false; });
 
-        // Bật tối đa quyền tự do sử dụng
+        // Bật toàn bộ cờ tự do sử dụng tính năng và bộ lọc
         const trueProps = [
           'can_view', 'unlocked', 'is_unlocked', 'is_free', 'free', 
           'can_use_filter', 'allowed', 'can_use_filters', 'can_use_gold_features',
@@ -136,13 +138,13 @@ else {
         ];
         trueProps.forEach(p => { if (p in node) node[p] = true; });
 
-        // Nâng thời lượng video tối đa trong các cấu hình đối tượng
+        // Mở rộng giới hạn thời lượng video
         const durationProps = ['max_duration', 'maxDuration', 'gold_max_duration', 'video_max_duration', 'camera_roll_max_duration'];
         durationProps.forEach(p => {
           if (p in node) node[p] = VIDEO_DURATION_SEC;
         });
 
-        // Bỏ triệt để ảnh mờ, ép nhận link ảnh gốc siêu nét
+        // Bỏ làm mờ ảnh, trả về link gốc
         const unblurredUrl = node.unblurred_url || node.unlocked_url || node.result_url || node.image_url || node.url;
         if (unblurredUrl && typeof unblurredUrl === 'string' && unblurredUrl.startsWith('http')) {
           if ('blurred_url' in node) node.blurred_url = unblurredUrl;
@@ -151,16 +153,15 @@ else {
         }
 
         for (let key of Object.keys(node)) {
-          deepCleanAndUnlock(node[key]);
+          deepUnlockAndClean(node[key]);
         }
       }
 
-      deepCleanAndUnlock(obj);
+      deepUnlockAndClean(obj);
       body = JSON.stringify(obj);
     } catch (err) {}
   }
 
-  // Dọn sạch header phản hồi để app nhận trọn vẹn dữ liệu sạch
   let respHeaders = Object.assign({}, ($response && $response.headers) || {});
   delete respHeaders['Content-Encoding'];
   delete respHeaders['content-encoding'];
